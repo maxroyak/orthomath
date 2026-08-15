@@ -146,7 +146,9 @@ export function SpaceAnalysisPage() {
                       <div
                         key={w.id}
                         className={`flex items-start gap-2 p-3 rounded-lg text-sm ${
-                          w.level === 'warning' ? 'bg-amber-50 text-amber-800' : 'bg-blue-50 text-blue-800'
+                          w.level === 'conflict' ? 'bg-rose-50 text-rose-800' :
+                          w.level === 'review' ? 'bg-amber-50 text-amber-800' :
+                          'bg-blue-50 text-blue-800'
                         }`}
                       >
                         <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">

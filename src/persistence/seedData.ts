@@ -10,7 +10,6 @@ import type {
   ToothMeasurement,
 } from '../domain/types';
 
-// Use deterministic UUIDs for seed data so relationships are stable
 const SEED_PATIENT_ID = 'seed-patient-anna';
 const SEED_DIAG_ID = 'seed-diag-anna';
 
@@ -23,7 +22,6 @@ function seedTeeth(widths: Record<number, number>): ToothMeasurement[] {
   }));
 }
 
-// Realistic mesiodistal widths (mm) — synthetic demo data
 const UPPER_WIDTHS: Record<number, number> = {
   11: 8.5, 12: 6.5, 13: 8.0, 14: 7.0, 15: 6.7, 16: 10.5,
   21: 8.5, 22: 6.5, 23: 8.0, 24: 7.0, 25: 6.7, 26: 10.5,
@@ -75,6 +73,8 @@ export function createSeedData(assumptions: CalculationAssumptions): {
   };
 
   // ── Scenario A: Non-extraction ─────────────────────────────────────────────
+  // Upper: -6.4 + 1.8 + 2.0 + 2.5 = -0.1 (balanced)
+  // Lower: -4.2 + 2.0 + 2.2 = 0.0 (balanced)
   const scenarioA: TreatmentScenario = {
     id: 'seed-scenario-a',
     patientId: SEED_PATIENT_ID,
@@ -91,11 +91,7 @@ export function createSeedData(assumptions: CalculationAssumptions): {
         scenarioId: 'seed-scenario-a',
         type: 'EXPANSION',
         arch: 'upper',
-        parameters: {
-          expansionMode: 'calculated',
-          expansionAmount: 3.0,
-          expansionCoefficient: 0.6,
-        },
+        parameters: { expansionMode: 'calculated', expansionAmount: 3.0, expansionCoefficient: 0.6 },
         spaceEffect: 1.8,
       },
       {
@@ -103,20 +99,16 @@ export function createSeedData(assumptions: CalculationAssumptions): {
         scenarioId: 'seed-scenario-a',
         type: 'IPR',
         arch: 'upper',
-        parameters: { iprPerContact: 0.2, numberOfContacts: 12 },
-        spaceEffect: 2.4,
+        parameters: { iprPerContact: 0.2, numberOfContacts: 10 },
+        spaceEffect: 2.0,
       },
       {
         id: 'seed-mech-a3',
         scenarioId: 'seed-scenario-a',
         type: 'DISTALIZATION',
         arch: 'upper',
-        parameters: {
-          rightDistalization: 0.75,
-          leftDistalization: 0.75,
-          expectedUsableSpace: 1.5,
-        },
-        spaceEffect: 1.5,
+        parameters: { rightDistalization: 1.5, leftDistalization: 1.5, expectedUsableSpace: 2.5 },
+        spaceEffect: 2.5,
       },
       {
         id: 'seed-mech-a4',
@@ -131,13 +123,18 @@ export function createSeedData(assumptions: CalculationAssumptions): {
         scenarioId: 'seed-scenario-a',
         type: 'INCISOR_MOVEMENT',
         arch: 'lower',
-        parameters: { incisorMovement: 1.0, incisorCoefficient: 2.0 },
-        spaceEffect: 2.0,
+        parameters: { incisorMovement: 1.1, incisorCoefficient: 2.0 },
+        spaceEffect: 2.2,
       },
     ],
   };
 
-  // ── Scenario B: Upper premolar extraction (14/24) ────────────────────────
+  // ── Scenario B: Extraction 14/24 ──────────────────────────────────────────
+  // Upper: 14 + 24 = 7.0 + 7.0 = 14.0 mm extraction space
+  // Allocation: alignment 6.4, incisor retraction 5.0, anchorage 1.5, other 0.5 = 13.4
+  // Unallocated: 0.6 mm (demonstrates warning)
+  // Space effect for alignment = 6.4 → -6.4 + 6.4 = 0.0 (balanced)
+  // Lower: -4.2 + 2.0 + 2.2 = 0.0 (balanced)
   const scenarioB: TreatmentScenario = {
     id: 'seed-scenario-b',
     patientId: SEED_PATIENT_ID,
@@ -157,9 +154,14 @@ export function createSeedData(assumptions: CalculationAssumptions): {
         parameters: {
           extractedTeeth: [14, 24],
           toothWidths: { 14: 7.0, 24: 7.0 },
-          extractionUtilizationPercent: 50,
+          extractionAllocation: {
+            alignment: 6.4,
+            incisorRetraction: 5.0,
+            anchorageLoss: 1.5,
+            other: 0.5,
+          },
         },
-        spaceEffect: 7.0,
+        spaceEffect: 6.4, // alignment portion
       },
       {
         id: 'seed-mech-b2',
@@ -174,17 +176,21 @@ export function createSeedData(assumptions: CalculationAssumptions): {
         scenarioId: 'seed-scenario-b',
         type: 'INCISOR_MOVEMENT',
         arch: 'lower',
-        parameters: { incisorMovement: 1.0, incisorCoefficient: 2.0 },
-        spaceEffect: 2.0,
+        parameters: { incisorMovement: 1.1, incisorCoefficient: 2.0 },
+        spaceEffect: 2.2,
       },
     ],
   };
 
   // ── Scenario C: Four premolar extraction ──────────────────────────────────
+  // Upper: 14+24 = 14.0, allocation: alignment 6.4, incisor retraction 4.0, anchorage 2.0, other 1.0 = 13.4
+  // Unallocated: 0.6 → -6.4 + 6.4 = 0.0
+  // Lower: 34+44 = 7.0+7.0 = 14.0, allocation: alignment 4.2, incisor retraction 5.0, anchorage 3.0, other 1.5 = 13.7
+  // Unallocated: 0.3 → -4.2 + 4.2 = 0.0
   const scenarioC: TreatmentScenario = {
     id: 'seed-scenario-c',
     patientId: SEED_PATIENT_ID,
-    name: 'Extraction 14/24/34/44',
+    name: 'Four-premolar extraction',
     description: 'Four-premolar extraction with anchorage preparation',
     isPreferred: false,
     assumptions: { ...assumptions },
@@ -200,9 +206,14 @@ export function createSeedData(assumptions: CalculationAssumptions): {
         parameters: {
           extractedTeeth: [14, 24],
           toothWidths: { 14: 7.0, 24: 7.0 },
-          extractionUtilizationPercent: 50,
+          extractionAllocation: {
+            alignment: 6.4,
+            incisorRetraction: 4.0,
+            anchorageLoss: 2.0,
+            other: 1.0,
+          },
         },
-        spaceEffect: 7.0,
+        spaceEffect: 6.4,
       },
       {
         id: 'seed-mech-c2',
@@ -212,9 +223,14 @@ export function createSeedData(assumptions: CalculationAssumptions): {
         parameters: {
           extractedTeeth: [34, 44],
           toothWidths: { 34: 7.0, 44: 7.0 },
-          extractionUtilizationPercent: 50,
+          extractionAllocation: {
+            alignment: 4.2,
+            incisorRetraction: 5.0,
+            anchorageLoss: 3.0,
+            other: 1.5,
+          },
         },
-        spaceEffect: 7.0,
+        spaceEffect: 4.2,
       },
     ],
   };

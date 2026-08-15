@@ -6,7 +6,7 @@ import { PatientHeader } from '../components/layout/PatientHeader';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
-import { calculateSpaceBalance, resolveMechanicSpaceEffect, mechanicLabel } from '../domain/calculations/spaceBalance';
+import { calculateSpaceBalance, resolveMechanicSpaceEffect, mechanicLabel, calculateExtractionTotalSpace, getExtractionAllocationTotal, getExtractionUnallocated } from '../domain/calculations/spaceBalance';
 import { generateWarnings } from '../domain/warnings/warningEngine';
 import { calculateBolton } from '../domain/calculations/bolton';
 
@@ -39,7 +39,10 @@ export function SummaryPage() {
     const upperBalance = calculateSpaceBalance(upperCrowding, resolvedMechanics, 'upper', settings.balancedTolerance, settings.minorDiscrepancyThreshold);
     const lowerBalance = calculateSpaceBalance(lowerCrowding, resolvedMechanics, 'lower', settings.balancedTolerance, settings.minorDiscrepancyThreshold);
     const warnings = generateWarnings([upperBalance, lowerBalance], resolvedMechanics, displayScenario.assumptions);
-    const bolton = diag.includeBolton ? calculateBolton(diag.toothMeasurements) : null;
+    const bolton = diag.includeBolton ? calculateBolton(diag.toothMeasurements, {
+      boltonDiscrepancyTolerance: settings.boltonDiscrepancyTolerance,
+      boltonRelevantThreshold: settings.boltonRelevantThreshold,
+    }) : null;
 
     return { resolvedMechanics, upperBalance, lowerBalance, warnings, bolton };
   }, [diag, displayScenario, settings]);
@@ -48,6 +51,12 @@ export function SummaryPage() {
 
   const upperCrowding = diag?.archMeasurements.find((a) => a.arch === 'upper')?.crowdingSpacing;
   const lowerCrowding = diag?.archMeasurements.find((a) => a.arch === 'lower')?.crowdingSpacing;
+
+  const WARNING_STYLES: Record<string, string> = {
+    info: 'bg-blue-50 text-blue-800',
+    review: 'bg-amber-50 text-amber-800',
+    conflict: 'bg-rose-50 text-rose-800',
+  };
 
   return (
     <div>
@@ -149,6 +158,25 @@ export function SummaryPage() {
               </div>
             </div>
 
+            {/* Extraction allocation detail */}
+            {summaryData.resolvedMechanics.filter((m) => m.type === 'EXTRACTION').map((m) => {
+              const total = calculateExtractionTotalSpace(Object.values(m.parameters.toothWidths || {}));
+              const allocTotal = getExtractionAllocationTotal(m.parameters.extractionAllocation);
+              const unallocated = getExtractionUnallocated(total, m.parameters.extractionAllocation);
+              if (total === 0) return null;
+              return (
+                <div key={m.id}>
+                  <h3 className="font-semibold text-slate-900 mb-2">Extraction Allocation — {m.arch === 'upper' ? 'Upper' : 'Lower'} Arch</h3>
+                  <div className="space-y-1 text-sm">
+                    <div className="flex justify-between"><span className="text-slate-400">Total extraction space</span><span className="font-medium">{total.toFixed(1)} mm</span></div>
+                    <div className="flex justify-between"><span className="text-slate-400">Allocated to alignment</span><span className="font-medium">{(m.parameters.extractionAllocation?.alignment || 0).toFixed(1)} mm</span></div>
+                    <div className="flex justify-between"><span className="text-slate-400">Total allocated</span><span className="font-medium">{allocTotal.toFixed(1)} mm</span></div>
+                    <div className="flex justify-between"><span className="text-slate-400">Unallocated</span><span className={`font-medium ${unallocated > 0.01 ? 'text-amber-600' : unallocated < -0.01 ? 'text-rose-600' : 'text-emerald-600'}`}>{unallocated > 0 ? '+' : ''}{unallocated.toFixed(1)} mm</span></div>
+                  </div>
+                </div>
+              );
+            })}
+
             {/* Bolton */}
             {summaryData.bolton && (summaryData.bolton.anterior || summaryData.bolton.overall) && (
               <div>
@@ -158,12 +186,14 @@ export function SummaryPage() {
                     <div className="bg-slate-50 rounded-lg p-3">
                       <div className="text-xs text-slate-400">Anterior ratio</div>
                       <div className="font-medium">{summaryData.bolton.anterior.ratio}% (ref: 77.2%)</div>
+                      <div className="text-xs text-slate-500 mt-1">Discrepancy: {summaryData.bolton.anterior.discrepancyMm} mm — {summaryData.bolton.anterior.discrepancyDirection.replace('_', ' ')}</div>
                     </div>
                   )}
                   {summaryData.bolton.overall && (
                     <div className="bg-slate-50 rounded-lg p-3">
                       <div className="text-xs text-slate-400">Overall ratio</div>
                       <div className="font-medium">{summaryData.bolton.overall.ratio}% (ref: 91.3%)</div>
+                      <div className="text-xs text-slate-500 mt-1">Discrepancy: {summaryData.bolton.overall.discrepancyMm} mm — {summaryData.bolton.overall.discrepancyDirection.replace('_', ' ')}</div>
                     </div>
                   )}
                 </div>
@@ -172,12 +202,11 @@ export function SummaryPage() {
 
             {/* Assumptions */}
             <div>
-              <h3 className="font-semibold text-slate-900 mb-2">Assumptions</h3>
+              <h3 className="font-semibold text-slate-900 mb-2">Planning Assumptions</h3>
               <div className="grid grid-cols-2 gap-2 text-sm text-slate-600">
                 <div>Expansion coefficient: {displayScenario.assumptions.expansionCoefficient}</div>
                 <div>Incisor advancement coefficient: {displayScenario.assumptions.incisorAdvancementCoefficient}</div>
                 <div>Incisor retraction coefficient: {displayScenario.assumptions.incisorRetractionCoefficient}</div>
-                <div>Extraction utilization: {displayScenario.assumptions.extractionSpaceUtilization}%</div>
                 <div>Balanced tolerance: ±{displayScenario.assumptions.balancedTolerance} mm</div>
                 <div>IPR warning threshold: {displayScenario.assumptions.iprWarningThreshold} mm/contact</div>
               </div>
@@ -203,7 +232,10 @@ export function SummaryPage() {
                 <h3 className="font-semibold text-slate-900 mb-2">Warnings</h3>
                 <div className="space-y-2">
                   {summaryData.warnings.map((w) => (
-                    <div key={w.id} className={`p-3 rounded-lg text-sm ${w.level === 'warning' ? 'bg-amber-50 text-amber-800' : 'bg-blue-50 text-blue-800'}`}>
+                    <div key={w.id} className={`p-3 rounded-lg text-sm ${WARNING_STYLES[w.level]}`}>
+                      <span className="font-medium text-xs uppercase mr-2">
+                        {w.level === 'conflict' ? 'Conflict' : w.level === 'review' ? 'Review' : 'Info'}
+                      </span>
                       {w.message}
                     </div>
                   ))}
@@ -224,7 +256,7 @@ export function SummaryPage() {
               <p className="text-xs text-slate-400 italic">
                 OrthoMath is a clinical calculation and treatment-planning support tool intended for
                 qualified dental professionals. It does not provide a diagnosis or prescribe treatment.
-                All calculations must be interpreted and verified by the treating clinician.
+                All calculations and assumptions must be interpreted and verified by the treating clinician.
               </p>
             </div>
           </div>

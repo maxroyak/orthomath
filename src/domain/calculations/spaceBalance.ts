@@ -15,6 +15,8 @@ import type {
   MechanicEffectBreakdown,
   BalanceStatus,
   CalculationAssumptions,
+  ExtractionAllocation,
+  ToothMeasurement,
 } from '../types';
 
 export function calculateSpaceBalance(
@@ -41,7 +43,6 @@ export function calculateSpaceBalance(
     .filter((m) => m.spaceEffect < 0)
     .reduce((sum, m) => sum + Math.abs(m.spaceEffect), 0);
 
-  // Sum all effects directly for precision
   const finalBalance = startingDiscrepancy + archMechanics.reduce((s, m) => s + m.spaceEffect, 0);
 
   return {
@@ -117,19 +118,54 @@ export function calculateDistalizationEffect(
   return potential;
 }
 
+export function calculateExtractionTotalSpace(
+  toothWidths: number[],
+): number {
+  return toothWidths.reduce((s, w) => s + w, 0);
+}
+
 export function calculateExtractionEffect(
   toothWidths: number[],
   utilizationPercent: number,
 ): number {
-  const totalSpace = toothWidths.reduce((s, w) => s + w, 0);
+  const totalSpace = calculateExtractionTotalSpace(toothWidths);
   return +((totalSpace * utilizationPercent) / 100).toFixed(2);
+}
+
+// ── Extraction Allocation ──────────────────────────────────────────────────
+
+export function getExtractionAllocationTotal(allocation: ExtractionAllocation | undefined): number {
+  if (!allocation) return 0;
+  return (allocation.alignment || 0) +
+    (allocation.incisorRetraction || 0) +
+    (allocation.anchorageLoss || 0) +
+    (allocation.molarMovement || 0) +
+    (allocation.other || 0);
+}
+
+export function getExtractionUnallocated(
+  totalExtractionSpace: number,
+  allocation: ExtractionAllocation | undefined,
+): number {
+  return +(totalExtractionSpace - getExtractionAllocationTotal(allocation)).toFixed(2);
+}
+
+export function getExtractionSpaceForAlignment(
+  totalExtractionSpace: number,
+  allocation: ExtractionAllocation | undefined,
+): number {
+  // If allocation exists, the space effect is the alignment portion
+  if (allocation) {
+    return allocation.alignment || 0;
+  }
+  // Without allocation, use utilization percent approach (legacy)
+  return totalExtractionSpace;
 }
 
 export function calculateIncisorMovementEffect(
   movement: number,
   coefficient: number,
 ): number {
-  // positive movement = advancement, positive effect = space creation
   return +(movement * coefficient).toFixed(2);
 }
 
@@ -160,11 +196,15 @@ export function resolveMechanicSpaceEffect(
         p.leftDistalization || 0,
         p.expectedUsableSpace,
       );
-    case 'EXTRACTION':
-      return calculateExtractionEffect(
-        Object.values(p.toothWidths || {}),
-        p.extractionUtilizationPercent ?? assumptions.extractionSpaceUtilization,
-      );
+    case 'EXTRACTION': {
+      const widths = Object.values(p.toothWidths || {});
+      // If allocation exists, space effect = alignment portion
+      if (p.extractionAllocation) {
+        return p.extractionAllocation.alignment || 0;
+      }
+      // Without allocation, use utilization percent
+      return calculateExtractionEffect(widths, p.extractionUtilizationPercent ?? assumptions.extractionSpaceUtilization);
+    }
     case 'INCISOR_MOVEMENT':
       return calculateIncisorMovementEffect(
         p.incisorMovement || 0,
@@ -177,4 +217,31 @@ export function resolveMechanicSpaceEffect(
     default:
       return 0;
   }
+}
+
+// ── Tooth Width Lookup ────────────────────────────────────────────────────
+
+export function getToothWidth(
+  fdiNumber: number,
+  toothMeasurements: ToothMeasurement[],
+): number | undefined {
+  const tooth = toothMeasurements.find((t) => t.fdiNumber === fdiNumber);
+  return tooth?.mesiodistalWidth;
+}
+
+export function getToothWidthsForExtraction(
+  extractedTeeth: number[],
+  toothMeasurements: ToothMeasurement[],
+  manualWidths?: Record<number, number>,
+): Record<number, number> {
+  const result: Record<number, number> = {};
+  for (const fdi of extractedTeeth) {
+    const measured = getToothWidth(fdi, toothMeasurements);
+    if (measured !== undefined) {
+      result[fdi] = measured;
+    } else if (manualWidths?.[fdi] !== undefined) {
+      result[fdi] = manualWidths[fdi];
+    }
+  }
+  return result;
 }

@@ -31,12 +31,12 @@ describe('Warning Engine', () => {
 
   it('warns about excess space', () => {
     const warnings = generateWarnings([makeBalance('upper', 4.8)], [], assumptions);
-    expect(warnings.some((w) => w.message.includes('remaining space'))).toBe(true);
+    expect(warnings.some((w) => w.message.includes('space remaining'))).toBe(true);
   });
 
   it('does not warn when balanced', () => {
     const warnings = generateWarnings([makeBalance('upper', 0.0)], [], assumptions);
-    expect(warnings.some((w) => w.arch === 'upper' && w.level === 'warning')).toBe(false);
+    expect(warnings.some((w) => w.arch === 'upper' && w.level === 'review')).toBe(false);
   });
 
   it('warns about IPR exceeding threshold', () => {
@@ -61,7 +61,7 @@ describe('Warning Engine', () => {
       { id: 'm2', scenarioId: 's1', type: 'IPR', arch: 'upper', parameters: {}, spaceEffect: 1.0 },
     ];
     const warnings = generateWarnings([makeBalance('upper', 0)], mechanics, assumptions);
-    expect(warnings.some((w) => w.message.includes('Expansion') && w.message.includes('%'))).toBe(true);
+    expect(warnings.some((w) => w.message.includes('expansion') && w.message.includes('%'))).toBe(true);
   });
 
   it('generates warnings for both arches', () => {

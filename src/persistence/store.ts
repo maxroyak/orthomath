@@ -34,6 +34,8 @@ const DEFAULT_SETTINGS: UserSettings = {
   },
   balancedTolerance: 0.5,
   minorDiscrepancyThreshold: 2.0,
+  boltonDiscrepancyTolerance: 0.5,
+  boltonRelevantThreshold: 1.5,
 };
 
 function loadData(): AppData {
@@ -46,8 +48,12 @@ function loadData(): AppData {
         patients: parsed.patients || [],
         diagnostics: parsed.diagnostics || [],
         scenarios: parsed.scenarios || [],
-        settings: { ...DEFAULT_SETTINGS, ...parsed.settings,
-          defaultAssumptions: { ...DEFAULT_SETTINGS.defaultAssumptions, ...parsed.settings?.defaultAssumptions }
+        settings: {
+          ...DEFAULT_SETTINGS,
+          ...parsed.settings,
+          defaultAssumptions: { ...DEFAULT_SETTINGS.defaultAssumptions, ...parsed.settings?.defaultAssumptions },
+          boltonDiscrepancyTolerance: parsed.settings?.boltonDiscrepancyTolerance ?? DEFAULT_SETTINGS.boltonDiscrepancyTolerance,
+          boltonRelevantThreshold: parsed.settings?.boltonRelevantThreshold ?? DEFAULT_SETTINGS.boltonRelevantThreshold,
         },
         firstUse: parsed.firstUse ?? true,
       };

@@ -11,7 +11,7 @@ export type DentitionStage = 'mixed' | 'permanent';
 export interface Patient {
   id: string;
   name: string;
-  dateOfBirth?: string; // ISO date or undefined if age used directly
+  dateOfBirth?: string;
   age?: number;
   sex: Sex;
   dentitionStage: DentitionStage;
@@ -24,11 +24,8 @@ export interface Patient {
 
 export interface ArchMeasurement {
   arch: Arch;
-  /** Manual entry: crowding (negative) or spacing (positive) in mm */
   crowdingSpacing?: number;
-  /** Available arch perimeter in mm (optional detailed mode) */
   archPerimeter?: number;
-  /** Required tooth material in mm (optional detailed mode) */
   toothMaterial?: number;
 }
 
@@ -38,7 +35,6 @@ export interface DiagnosticRecord {
   archMeasurements: ArchMeasurement[];
   toothMeasurements: ToothMeasurement[];
   cephalometric: CephalometricValues;
-  /** Whether to include Bolton analysis */
   includeBolton: boolean;
   createdAt: string;
   updatedAt: string;
@@ -46,17 +42,14 @@ export interface DiagnosticRecord {
 
 // ── Tooth Measurements ─────────────────────────────────────────────────────
 
-// FDI numbering system. Upper right: 11-17, upper left: 21-27,
-// lower left: 31-37, lower right: 41-47
 export interface ToothMeasurement {
   id: string;
   fdiNumber: number;
   arch: Arch;
-  mesiodistalWidth: number; // mm
+  mesiodistalWidth: number;
 }
 
 // ── Cephalometric / Optional Diagnostic Values ─────────────────────────────
-// Stored but not yet used by the calculation engine. Future-proofing.
 
 export interface CephalometricValues {
   SNA?: number;
@@ -108,7 +101,6 @@ export interface TreatmentMechanic {
   type: MechanicType;
   arch: Arch;
   parameters: MechanicParameters;
-  /** Calculated space effect in mm. Positive = creates space, negative = consumes */
   spaceEffect: number;
 }
 
@@ -126,37 +118,49 @@ export interface MechanismParameters {
   leftDistalization?: number;
   expectedUsableSpace?: number;
   // Extraction
-  extractedTeeth?: number[]; // FDI numbers
-  toothWidths?: Record<number, number>; // fallback manual widths
+  extractedTeeth?: number[];
+  toothWidths?: Record<number, number>;
   extractionUtilizationPercent?: number;
+  extractionAllocation?: ExtractionAllocation;
   // Incisor movement
-  incisorMovement?: number; // mm, positive=advancement, negative=retraction
+  incisorMovement?: number;
   incisorCoefficient?: number;
   // Custom
   customName?: string;
   customSpaceEffect?: number;
 }
 
-// Use the concrete type for parameters
 export type MechanicParameters = MechanismParameters;
 
-// ── Calculation Assumptions ────────────────────────────────────────────────
+// ── Extraction Space Allocation ────────────────────────────────────────────
+
+export interface ExtractionAllocation {
+  alignment?: number;
+  incisorRetraction?: number;
+  anchorageLoss?: number;
+  molarMovement?: number;
+  other?: number;
+}
+
+// ── Calculation Assumptions (snapshot per scenario) ────────────────────────
 
 export interface CalculationAssumptions {
   expansionCoefficient: number;
   incisorAdvancementCoefficient: number;
   incisorRetractionCoefficient: number;
-  extractionSpaceUtilization: number; // percentage 0-100
-  iprWarningThreshold: number; // mm per contact
-  balancedTolerance: number; // ±mm
+  extractionSpaceUtilization: number;
+  iprWarningThreshold: number;
+  balancedTolerance: number;
 }
 
 // ── User Settings ──────────────────────────────────────────────────────────
 
 export interface UserSettings {
   defaultAssumptions: CalculationAssumptions;
-  balancedTolerance: number; // ±mm for green/yellow/red
-  minorDiscrepancyThreshold: number; // beyond this = red
+  balancedTolerance: number;
+  minorDiscrepancyThreshold: number;
+  boltonDiscrepancyTolerance: number;   // mm — below this = "within tolerance"
+  boltonRelevantThreshold: number;       // mm — above this = "requires clinical review"
 }
 
 // ── Calculation Results ────────────────────────────────────────────────────
@@ -182,9 +186,11 @@ export type BalanceStatus = 'balanced' | 'minor' | 'unresolved';
 
 // ── Warnings ───────────────────────────────────────────────────────────────
 
+export type WarningLevel = 'info' | 'review' | 'conflict';
+
 export interface Warning {
   id: string;
-  level: 'info' | 'warning';
+  level: WarningLevel;
   arch?: Arch;
   message: string;
 }

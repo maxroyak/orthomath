@@ -8,6 +8,7 @@ import { Button } from '../components/ui/Button';
 import { NumberInput } from '../components/ui/NumberInput';
 import { InfoTooltip } from '../components/ui/InfoTooltip';
 import { calculateBolton } from '../domain/calculations/bolton';
+import type { BoltonStatus } from '../domain/calculations/bolton';
 
 const UPPER_FDI = [11, 12, 13, 14, 15, 16, 17, 21, 22, 23, 24, 25, 26, 27];
 const LOWER_FDI = [41, 42, 43, 44, 45, 46, 47, 31, 32, 33, 34, 35, 36, 37];
@@ -108,7 +109,11 @@ export function DiagnosticsPage() {
 
   const boltonResult = useMemo(() => {
     if (!diag || !diag.includeBolton) return null;
-    return calculateBolton(diag.toothMeasurements);
+    const s = store.getSettings();
+    return calculateBolton(diag.toothMeasurements, {
+      boltonDiscrepancyTolerance: s.boltonDiscrepancyTolerance,
+      boltonRelevantThreshold: s.boltonRelevantThreshold,
+    });
   }, [diag]);
 
   if (!patient) return <div className="text-slate-500">Patient not found.</div>;
@@ -130,8 +135,8 @@ export function DiagnosticsPage() {
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-slate-900">Diagnostic Data</h2>
         <div className="flex gap-2">
-          <Button variant="secondary" size="sm" onClick={() => navigate(`/patient/${patientId}/space-analysis`)}>
-            Next: Space Analysis →
+          <Button variant="secondary" size="sm" onClick={() => navigate(`/patient/${patientId}/scenarios`)}>
+            Next: Treatment Planning →
           </Button>
         </div>
       </div>
@@ -342,49 +347,15 @@ export function DiagnosticsPage() {
               <p className="text-sm text-slate-600">{boltonResult.message}</p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {boltonResult.anterior && (
-                  <div className="bg-slate-50 rounded-lg p-4">
-                    <div className="flex items-center gap-1 mb-2">
-                      <h4 className="font-medium text-slate-700">Anterior Ratio</h4>
-                      <InfoTooltip
-                        label="Bolton Anterior Ratio"
-                        formula="Σ lower anterior 6 / Σ upper anterior 6 × 100"
-                        inputs={`Lower 6: ${boltonResult.anterior.ratio}%`}
-                        result={`${boltonResult.anterior.ratio}%`}
-                      />
-                    </div>
-                    <div className="space-y-1 text-sm">
-                      <div className="flex justify-between"><span className="text-slate-400">Calculated:</span><span className="font-medium">{boltonResult.anterior.ratio}%</span></div>
-                      <div className="flex justify-between"><span className="text-slate-400">Reference:</span><span>77.2%</span></div>
-                      <div className="flex justify-between"><span className="text-slate-400">Difference:</span><span className={boltonResult.anterior.difference === 0 ? '' : 'text-amber-600 font-medium'}>{boltonResult.anterior.difference > 0 ? '+' : ''}{boltonResult.anterior.difference}%</span></div>
-                      <div className="flex justify-between"><span className="text-slate-400">Discrepancy:</span><span className="font-medium">{boltonResult.anterior.discrepancyMm} mm</span></div>
-                      <div className="flex justify-between"><span className="text-slate-400">Direction:</span><span>{boltonResult.anterior.discrepancyDirection === 'mandibular_excess' ? 'Mandibular excess' : boltonResult.anterior.discrepancyDirection === 'maxillary_excess' ? 'Maxillary excess' : 'None'}</span></div>
-                    </div>
-                  </div>
+                  <BoltonRatioCard title="Bolton Anterior" result={boltonResult.anterior} formula="Σ lower anterior 6 / Σ upper anterior 6 × 100" />
                 )}
                 {boltonResult.overall && (
-                  <div className="bg-slate-50 rounded-lg p-4">
-                    <div className="flex items-center gap-1 mb-2">
-                      <h4 className="font-medium text-slate-700">Overall Ratio</h4>
-                      <InfoTooltip
-                        label="Bolton Overall Ratio"
-                        formula="Σ lower 12 / Σ upper 12 × 100"
-                        inputs={`Ratio: ${boltonResult.overall.ratio}%`}
-                        result={`${boltonResult.overall.ratio}%`}
-                      />
-                    </div>
-                    <div className="space-y-1 text-sm">
-                      <div className="flex justify-between"><span className="text-slate-400">Calculated:</span><span className="font-medium">{boltonResult.overall.ratio}%</span></div>
-                      <div className="flex justify-between"><span className="text-slate-400">Reference:</span><span>91.3%</span></div>
-                      <div className="flex justify-between"><span className="text-slate-400">Difference:</span><span className={boltonResult.overall.difference === 0 ? '' : 'text-amber-600 font-medium'}>{boltonResult.overall.difference > 0 ? '+' : ''}{boltonResult.overall.difference}%</span></div>
-                      <div className="flex justify-between"><span className="text-slate-400">Discrepancy:</span><span className="font-medium">{boltonResult.overall.discrepancyMm} mm</span></div>
-                      <div className="flex justify-between"><span className="text-slate-400">Direction:</span><span>{boltonResult.overall.discrepancyDirection === 'mandibular_excess' ? 'Mandibular excess' : boltonResult.overall.discrepancyDirection === 'maxillary_excess' ? 'Maxillary excess' : 'None'}</span></div>
-                    </div>
-                  </div>
+                  <BoltonRatioCard title="Bolton Overall" result={boltonResult.overall} formula="Σ lower 12 / Σ upper 12 × 100" />
                 )}
               </div>
               <p className="text-xs text-slate-400 italic">
-                Tooth-size discrepancy detected. Clinical interpretation required. OrthoMath does not
-                automatically prescribe IPR or restorative treatment.
+                OrthoMath does not automatically prescribe IPR, restoration, extraction, or enamel reduction.
+                All discrepancy interpretations require clinical review by the treating clinician.
               </p>
             </div>
           ) : null}
@@ -441,6 +412,47 @@ export function DiagnosticsPage() {
           </p>
         </Card>
       )}
+    </div>
+  );
+}
+
+// ── Bolton Ratio Card Component ─────────────────────────────────────────────
+
+function BoltonRatioCard({ title, result, formula }: {
+  title: string;
+  result: import('../domain/calculations/bolton').BoltonRatioResult;
+  formula: string;
+}) {
+  const statusStyles: Record<BoltonStatus, { bg: string; text: string; label: string }> = {
+    within_tolerance: { bg: 'bg-emerald-50', text: 'text-emerald-700', label: 'Within configured tolerance' },
+    minor_discrepancy: { bg: 'bg-amber-50', text: 'text-amber-700', label: 'Minor tooth-size discrepancy' },
+    relevant_discrepancy: { bg: 'bg-rose-50', text: 'text-rose-700', label: 'Tooth-size discrepancy requires clinical review' },
+  };
+  const s = statusStyles[result.status];
+  const dirLabel = result.discrepancyDirection === 'mandibular_excess' ? 'Mandibular excess' :
+    result.discrepancyDirection === 'maxillary_excess' ? 'Maxillary excess' : 'None';
+
+  return (
+    <div className="bg-slate-50 rounded-lg p-4">
+      <div className="flex items-center gap-1 mb-3">
+        <h4 className="font-medium text-slate-700">{title}</h4>
+        <InfoTooltip
+          label={title}
+          formula={formula}
+          inputs={`Ratio: ${result.ratio}%`}
+          result={`${result.ratio}%`}
+        />
+      </div>
+      <div className="space-y-1.5 text-sm">
+        <div className="flex justify-between"><span className="text-slate-400">Calculated</span><span className="font-medium text-slate-700">{result.ratio}%</span></div>
+        <div className="flex justify-between"><span className="text-slate-400">Reference</span><span className="text-slate-600">{result.reference}%</span></div>
+        <div className="flex justify-between"><span className="text-slate-400">Ratio difference</span><span className="text-slate-600">{result.difference > 0 ? '+' : ''}{result.difference}%</span></div>
+        <div className="flex justify-between"><span className="text-slate-400">Estimated discrepancy</span><span className="font-medium text-slate-700">{result.discrepancyMm} mm</span></div>
+        <div className="flex justify-between"><span className="text-slate-400">Direction</span><span className="text-slate-600">{dirLabel}</span></div>
+      </div>
+      <div className={`mt-3 px-3 py-2 rounded-lg text-xs font-medium ${s.bg} ${s.text}`}>
+        {s.label}
+      </div>
     </div>
   );
 }

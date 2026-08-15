@@ -40,7 +40,8 @@ export function SettingsPage() {
       <h2 className="text-2xl font-bold text-slate-900 mb-2">Settings</h2>
       <p className="text-sm text-slate-500 mb-8">Configure default assumptions and thresholds for calculations.</p>
 
-      <Card title="Default Assumptions" className="mb-6">
+      {/* Space Balance thresholds */}
+      <Card title="Space Balance Thresholds" className="mb-6">
         <div className="px-6 py-4 grid grid-cols-2 gap-4">
           <NumberInput
             label="Balanced discrepancy tolerance (±mm)"
@@ -54,6 +55,37 @@ export function SettingsPage() {
             onChange={(v) => update({ ...settings, minorDiscrepancyThreshold: v || 0 })}
             unit="mm"
           />
+        </div>
+        <div className="px-6 pb-4 text-xs text-slate-400">
+          Balanced: within ±{settings.balancedTolerance} mm · Minor: {settings.balancedTolerance}-{settings.minorDiscrepancyThreshold} mm · Unresolved: beyond {settings.minorDiscrepancyThreshold} mm
+        </div>
+      </Card>
+
+      {/* Bolton thresholds */}
+      <Card title="Bolton Analysis Thresholds" className="mb-6">
+        <div className="px-6 py-4 grid grid-cols-2 gap-4">
+          <NumberInput
+            label="Bolton discrepancy tolerance (mm)"
+            value={settings.boltonDiscrepancyTolerance}
+            onChange={(v) => update({ ...settings, boltonDiscrepancyTolerance: v || 0 })}
+            unit="mm"
+          />
+          <NumberInput
+            label="Bolton relevant discrepancy threshold (mm)"
+            value={settings.boltonRelevantThreshold}
+            onChange={(v) => update({ ...settings, boltonRelevantThreshold: v || 0 })}
+            unit="mm"
+          />
+        </div>
+        <div className="px-6 pb-4 text-xs text-slate-400">
+          Within tolerance: ≤{settings.boltonDiscrepancyTolerance} mm · Minor: {settings.boltonDiscrepancyTolerance}-{settings.boltonRelevantThreshold} mm · Requires review: beyond {settings.boltonRelevantThreshold} mm.
+          These are configurable assumptions, not universal clinical standards.
+        </div>
+      </Card>
+
+      {/* Default assumptions */}
+      <Card title="Default Planning Assumptions" className="mb-6">
+        <div className="px-6 py-4 grid grid-cols-2 gap-4">
           <NumberInput
             label="Expansion space coefficient"
             value={settings.defaultAssumptions.expansionCoefficient}
