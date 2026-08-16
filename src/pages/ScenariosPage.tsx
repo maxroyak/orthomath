@@ -12,6 +12,7 @@ import { Button } from '../components/ui/Button';
 import { NumberInput } from '../components/ui/NumberInput';
 import { Modal } from '../components/ui/Modal';
 import { EmptyState } from '../components/ui/EmptyState';
+import { PatientNotFound } from '../components/ui/PatientNotFound';
 import { BalanceChain } from '../components/ui/BalanceChain';
 import {
   calculateSpaceBalance, resolveMechanicSpaceEffect,
@@ -64,10 +65,9 @@ export function ScenariosPage() {
     setDiag(store.getDiagnostic(patientId));
     const sc = store.getScenarios(patientId);
     setScenarios(sc);
-    if (!activeScenarioId && sc.length > 0) {
-      setActiveScenarioId(sc[0].id);
-    }
-  }, [patientId, activeScenarioId]);
+    // Auto-select first scenario if none selected and scenarios exist
+    setActiveScenarioId((prev) => prev && sc.some((s) => s.id === prev) ? prev : (sc.length > 0 ? sc[0].id : null));
+  }, [patientId]);
 
   useEffect(() => { refresh(); }, [refresh]);
 
@@ -198,7 +198,7 @@ export function ScenariosPage() {
     handleUpdateScenario({ ...activeScenario, mechanics });
   };
 
-  if (!patient) return <div className="text-slate-500">Patient not found.</div>;
+  if (!patient) return <PatientNotFound />;
 
   const statusText = (s: string) => s === 'balanced' ? 'text-emerald-600' : s === 'minor' ? 'text-amber-600' : 'text-rose-600';
 
@@ -210,7 +210,7 @@ export function ScenariosPage() {
         <h2 className="text-xl font-bold text-slate-900">Treatment Scenarios</h2>
         <div className="flex gap-2">
           <Button variant="secondary" size="sm" onClick={() => navigate(`/patient/${patientId}/comparison`)}>
-            Compare →
+            Compare Scenarios →
           </Button>
           <Button size="sm" onClick={() => setShowNewScenario(true)}>
             + New Scenario

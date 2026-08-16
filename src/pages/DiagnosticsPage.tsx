@@ -1,12 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import type { Patient, DiagnosticRecord, ArchMeasurement, ToothMeasurement, CephalometricValues } from '../domain/types';
 import { store } from '../persistence/store';
 import { PatientHeader } from '../components/layout/PatientHeader';
 import { Card } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
 import { NumberInput } from '../components/ui/NumberInput';
 import { InfoTooltip } from '../components/ui/InfoTooltip';
+import { PatientNotFound } from '../components/ui/PatientNotFound';
 import { calculateBolton } from '../domain/calculations/bolton';
 import type { BoltonStatus } from '../domain/calculations/bolton';
 
@@ -15,7 +15,6 @@ const LOWER_FDI = [41, 42, 43, 44, 45, 46, 47, 31, 32, 33, 34, 35, 36, 37];
 
 export function DiagnosticsPage() {
   const { patientId } = useParams();
-  const navigate = useNavigate();
   const [patient, setPatient] = useState<Patient | undefined>();
   const [diag, setDiag] = useState<DiagnosticRecord | undefined>();
   const [showDetailed, setShowDetailed] = useState(false);
@@ -32,10 +31,13 @@ export function DiagnosticsPage() {
     }
   }, [patientId]);
 
-  // Auto-save
+  // Auto-save (debounced to avoid write loops)
   useEffect(() => {
     if (diag && patientId) {
-      store.saveDiagnostic(diag);
+      const timer = setTimeout(() => {
+        store.saveDiagnostic(diag);
+      }, 500);
+      return () => clearTimeout(timer);
     }
   }, [diag, patientId]);
 
@@ -116,7 +118,7 @@ export function DiagnosticsPage() {
     });
   }, [diag]);
 
-  if (!patient) return <div className="text-slate-500">Patient not found.</div>;
+  if (!patient) return <PatientNotFound />;
 
   const upperArch = diag?.archMeasurements.find((a) => a.arch === 'upper');
   const lowerArch = diag?.archMeasurements.find((a) => a.arch === 'lower');
@@ -135,9 +137,9 @@ export function DiagnosticsPage() {
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-slate-900">Diagnostic Data</h2>
         <div className="flex gap-2">
-          <Button variant="secondary" size="sm" onClick={() => navigate(`/patient/${patientId}/scenarios`)}>
+          <Link to={`/patient/${patientId}/scenarios`} className="inline-flex items-center gap-2 rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400 focus:ring-offset-1 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 px-3 py-1.5 text-sm">
             Next: Treatment Planning →
-          </Button>
+          </Link>
         </div>
       </div>
 

@@ -6,6 +6,7 @@ import { PatientHeader } from '../components/layout/PatientHeader';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
+import { PatientNotFound } from '../components/ui/PatientNotFound';
 import { calculateSpaceBalance, resolveMechanicSpaceEffect, calculateExtractionTotalSpace, getExtractionUnallocated } from '../domain/calculations/spaceBalance';
 import { generateWarnings } from '../domain/warnings/warningEngine';
 
@@ -72,7 +73,7 @@ export function ComparisonPage() {
     });
   }, [diag, scenarios, settings]);
 
-  if (!patient) return <div className="text-slate-500">Patient not found.</div>;
+  if (!patient) return <PatientNotFound />;
 
   const upperCrowding = diag?.archMeasurements.find((a) => a.arch === 'upper')?.crowdingSpacing;
   const lowerCrowding = diag?.archMeasurements.find((a) => a.arch === 'lower')?.crowdingSpacing;
@@ -95,7 +96,7 @@ export function ComparisonPage() {
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-slate-900">Scenario Comparison</h2>
         <Button variant="secondary" size="sm" onClick={() => navigate(`/patient/${patientId}/summary`)}>
-          Summary →
+          View Summary →
         </Button>
       </div>
 
@@ -105,6 +106,14 @@ export function ComparisonPage() {
             title="No scenarios to compare"
             description="Create at least two treatment scenarios to compare them side by side."
             action={<Button onClick={() => navigate(`/patient/${patientId}/scenarios`)}>Go to scenarios</Button>}
+          />
+        </Card>
+      ) : comparisonData.length === 1 ? (
+        <Card>
+          <EmptyState
+            title="Need at least two scenarios"
+            description="Create at least two treatment scenarios to compare them side by side. You currently have one scenario."
+            action={<Button onClick={() => navigate(`/patient/${patientId}/scenarios`)}>Create more scenarios</Button>}
           />
         </Card>
       ) : (

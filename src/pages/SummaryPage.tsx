@@ -6,6 +6,7 @@ import { PatientHeader } from '../components/layout/PatientHeader';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
+import { PatientNotFound } from '../components/ui/PatientNotFound';
 import { calculateSpaceBalance, resolveMechanicSpaceEffect, mechanicLabel, calculateExtractionTotalSpace, getExtractionAllocationTotal, getExtractionUnallocated } from '../domain/calculations/spaceBalance';
 import { generateWarnings } from '../domain/warnings/warningEngine';
 import { calculateBolton } from '../domain/calculations/bolton';
@@ -47,7 +48,7 @@ export function SummaryPage() {
     return { resolvedMechanics, upperBalance, lowerBalance, warnings, bolton };
   }, [diag, displayScenario, settings]);
 
-  if (!patient) return <div className="text-slate-500">Patient not found.</div>;
+  if (!patient) return <PatientNotFound />;
 
   const upperCrowding = diag?.archMeasurements.find((a) => a.arch === 'upper')?.crowdingSpacing;
   const lowerCrowding = diag?.archMeasurements.find((a) => a.arch === 'lower')?.crowdingSpacing;

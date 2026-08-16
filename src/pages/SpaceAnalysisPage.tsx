@@ -7,6 +7,7 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { BalanceBar } from '../components/ui/BalanceBar';
 import { EmptyState } from '../components/ui/EmptyState';
+import { PatientNotFound } from '../components/ui/PatientNotFound';
 import { calculateSpaceBalance, resolveMechanicSpaceEffect } from '../domain/calculations/spaceBalance';
 import { generateWarnings } from '../domain/warnings/warningEngine';
 
@@ -60,7 +61,7 @@ export function SpaceAnalysisPage() {
     });
   }, [diag, scenarios, settings]);
 
-  if (!patient) return <div className="text-slate-500">Patient not found.</div>;
+  if (!patient) return <PatientNotFound />;
 
   const upperCrowding = diag?.archMeasurements.find((a) => a.arch === 'upper')?.crowdingSpacing;
   const lowerCrowding = diag?.archMeasurements.find((a) => a.arch === 'lower')?.crowdingSpacing;
